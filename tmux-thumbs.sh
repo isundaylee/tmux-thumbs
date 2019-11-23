@@ -43,6 +43,7 @@ PARAMS[9]=$(option command)
 PARAMS[10]=$(option upcase-command)
 PARAMS[11]=$(multi regexp)
 PARAMS[12]=$(boolean contrast)
+PARAMS[13]=$(boolean osc52)
 
 # Remove empty arguments from PARAMS.
 # Otherwise, they would choke up tmux-thumbs when passed to it.
