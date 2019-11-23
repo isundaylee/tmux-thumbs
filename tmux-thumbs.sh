@@ -14,7 +14,7 @@ function option {
   VALUE=$(tmux show -vg @thumbs-$1 2> /dev/null)
 
   if [[ ${VALUE} ]]; then
-    echo "--$1 ${VALUE}"
+    echo "--$1=${VALUE}"
   fi
 }
 
@@ -44,11 +44,16 @@ PARAMS[10]=$(option upcase-command)
 PARAMS[11]=$(multi regexp)
 PARAMS[12]=$(boolean contrast)
 
+# Remove empty arguments from PARAMS.
+# Otherwise, they would choke up tmux-thumbs when passed to it.
+for i in "${!PARAMS[@]}"; do
+  [ -n "${PARAMS[$i]}" ] || unset "PARAMS[$i]"
+done
+
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 TARGET_RELEASE="/target/release/"
 CURRENT_PANE_ID=$(tmux list-panes -F "#{pane_id}:#{?pane_active,active,nope}" | grep active | cut -d: -f1)
-COMMAND="tmux-thumbs ${PARAMS[*]} --tmux-pane ${CURRENT_PANE_ID}"
-NEW_ID=$(tmux new-window -P -d -n "[thumbs]" ${CURRENT_DIR}${TARGET_RELEASE}${COMMAND})
+NEW_ID=$(tmux new-window -P -d -n "[thumbs]" ${CURRENT_DIR}${TARGET_RELEASE}tmux-thumbs "${PARAMS[@]}" "--tmux-pane=${CURRENT_PANE_ID}")
 NEW_PANE_ID=$(tmux list-panes -a | grep ${NEW_ID} | grep --color=never -o '%[0-9]\+')
 
 tmux swap-pane -d -s ${CURRENT_PANE_ID} -t ${NEW_PANE_ID}
