@@ -1,3 +1,4 @@
+extern crate base64;
 extern crate clap;
 extern crate rustbox;
 
@@ -73,6 +74,12 @@ fn app_args<'a>() -> clap::ArgMatches<'a> {
         .short("u"),
     )
     .arg(
+      Arg::with_name("osc52")
+        .help("Print OSC52 copy escape sequence in addition to running the pick command")
+        .long("osc52")
+        .short("o"),
+    )
+    .arg(
       Arg::with_name("position")
         .help("Hint position")
         .long("position")
@@ -120,6 +127,7 @@ fn main() {
   let position = args.value_of("position").unwrap();
   let reverse = args.is_present("reverse");
   let unique = args.is_present("unique");
+  let osc52 = args.is_present("osc52");
   let contrast = args.is_present("contrast");
   let regexp = if let Some(items) = args.values_of("regexp") {
     items.collect::<Vec<_>>()
@@ -165,15 +173,23 @@ fn main() {
     viewbox.present()
   };
 
-  if let Some(pane) = args.value_of("tmux_pane") {
-    exec_command(format!("tmux swap-pane -t {}", pane));
-  };
-
   if let Some((text, paste)) = selected {
+    if osc52 {
+      let base64_text = base64::encode(text.as_bytes());
+      print!(
+        "\x1bPtmux;\x1b\x1b]52;c;{}\x1b\x1b\\\\\x1b\\\n",
+        base64_text
+      );
+    }
+
     exec_command(str::replace(command, "{}", text.as_str()));
 
     if paste {
       exec_command(upcase_command.to_string());
     }
   }
+
+  if let Some(pane) = args.value_of("tmux_pane") {
+    exec_command(format!("tmux swap-pane -t {}", pane));
+  };
 }
