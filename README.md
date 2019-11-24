@@ -258,7 +258,7 @@ If this is set to `1`, `tmux-thumbs` will print a OSC52 copy escape sequence whe
 For example:
 
 ```
-set -g @thumbs-osc51 1
+set -g @thumbs-osc52 1
 ```
 
 #### Colors
