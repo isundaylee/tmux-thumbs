@@ -51,10 +51,25 @@ for i in "${!PARAMS[@]}"; do
   [ -n "${PARAMS[$i]}" ] || unset "PARAMS[$i]"
 done
 
+# Find the `tmux-thumbs` binary.
+# Prefers `cargo build` output in `target/release`.
+# If none exists, try to find a prebuilt binary under `prebuilt/`.
+# If still none exists, print an error message and abort.
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 TARGET_RELEASE="/target/release/"
+
+BINARY="${CURRENT_DIR}${TARGET_RELEASE}tmux-thumbs"
+if [ ! -e "${BINARY}" ]; then
+  PREBUILT_BINARY_NAME="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  BINARY="${CURRENT_DIR}/prebuilt/${PREBUILT_BINARY_NAME}"
+fi
+if [ ! -e "${BINARY}" ]; then
+  echo 'Cannot find `tmux-thumb` binary. Did you `cargo build --release`?'
+  exit 1
+fi
+
 CURRENT_PANE_ID=$(tmux list-panes -F "#{pane_id}:#{?pane_active,active,nope}" | grep active | cut -d: -f1)
-NEW_ID=$(tmux new-window -P -d -n "[thumbs]" ${CURRENT_DIR}${TARGET_RELEASE}tmux-thumbs "${PARAMS[@]}" "--tmux-pane=${CURRENT_PANE_ID}")
+NEW_ID=$(tmux new-window -P -d -n "[thumbs]" "${BINARY}" "${PARAMS[@]}" "--tmux-pane=${CURRENT_PANE_ID}")
 NEW_PANE_ID=$(tmux list-panes -a | grep ${NEW_ID} | grep --color=never -o '%[0-9]\+')
 
 tmux swap-pane -d -s ${CURRENT_PANE_ID} -t ${NEW_PANE_ID}
