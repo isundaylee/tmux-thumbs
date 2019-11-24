@@ -16,6 +16,8 @@ pub struct View<'a> {
   background_color: Color,
   hint_background_color: Color,
   hint_foreground_color: Color,
+  copy_mode_cursor_up_key: Option<char>,
+  copy_mode_cursor_down_key: Option<char>,
 }
 
 impl<'a> View<'a> {
@@ -30,6 +32,8 @@ impl<'a> View<'a> {
     background_color: Color,
     hint_foreground_color: Color,
     hint_background_color: Color,
+    copy_mode_cursor_up_key: Option<char>,
+    copy_mode_cursor_down_key: Option<char>,
   ) -> View<'a> {
     View {
       state: state,
@@ -43,6 +47,8 @@ impl<'a> View<'a> {
       background_color: background_color,
       hint_foreground_color: hint_foreground_color,
       hint_background_color: hint_background_color,
+      copy_mode_cursor_up_key: copy_mode_cursor_up_key,
+      copy_mode_cursor_down_key: copy_mode_cursor_down_key,
     }
   }
 
@@ -68,7 +74,7 @@ impl<'a> View<'a> {
     text
   }
 
-  pub fn present(&mut self) -> Option<(String, bool)> {
+  pub fn present(&mut self) -> Option<(String, bool, Option<String>)> {
     let mut rustbox = match RustBox::init(Default::default()) {
       Result::Ok(v) => v,
       Result::Err(e) => panic!("{}", e),
@@ -162,7 +168,7 @@ impl<'a> View<'a> {
             break;
           }
           Key::Enter => match matches.iter().enumerate().find(|&h| h.0 == self.skip) {
-            Some(hm) => return Some((hm.1.text.to_string(), false)),
+            Some(hm) => return Some((hm.1.text.to_string(), false, None)),
             _ => panic!("Match not found?"),
           },
           Key::Up => {
@@ -181,13 +187,25 @@ impl<'a> View<'a> {
             let key = ch.to_string();
             let lower_key = key.to_lowercase();
 
+            if let Some(up_key) = self.copy_mode_cursor_up_key {
+              if up_key == ch {
+                return Some((String::new(), false, Some(String::from("cursor-up"))));
+              }
+            }
+
+            if let Some(down_key) = self.copy_mode_cursor_down_key {
+              if down_key == ch {
+                return Some((String::new(), false, Some(String::from("cursor-down"))));
+              }
+            }
+
             typed_hint.push_str(lower_key.as_str());
 
             match matches
               .iter()
               .find(|mat| mat.hint == Some(typed_hint.clone()))
             {
-              Some(mat) => return Some((mat.text.to_string(), key != lower_key)),
+              Some(mat) => return Some((mat.text.to_string(), key != lower_key, None)),
               None => {
                 if typed_hint.len() >= longest_hint.len() {
                   break;

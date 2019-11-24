@@ -44,6 +44,8 @@ PARAMS[10]=$(option upcase-command)
 PARAMS[11]=$(multi regexp)
 PARAMS[12]=$(boolean contrast)
 PARAMS[13]=$(boolean osc52)
+PARAMS[14]=$(option copy-mode-up-key)
+PARAMS[15]=$(option copy-mode-down-key)
 
 # Remove empty arguments from PARAMS.
 # Otherwise, they would choke up tmux-thumbs when passed to it.

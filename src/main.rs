@@ -118,6 +118,18 @@ fn app_args<'a>() -> clap::ArgMatches<'a> {
         .long("contrast")
         .short("c"),
     )
+    .arg(
+      Arg::with_name("copy_mode_up_key")
+        .help("Tap this key in thumbs mode to go into copy-mode instead and move up one line")
+        .long("copy-mode-up-key")
+        .takes_value(true),
+    )
+    .arg(
+      Arg::with_name("copy_mode_down_key")
+        .help("Tap this key in thumbs mode to go into copy-mode instead and move down one line")
+        .long("copy-mode-down-key")
+        .takes_value(true),
+    )
     .get_matches();
 }
 
@@ -141,6 +153,9 @@ fn main() {
   let hint_background_color = colors::get_color(args.value_of("hint_background_color").unwrap());
   let select_foreground_color =
     colors::get_color(args.value_of("select_foreground_color").unwrap());
+
+  let copy_mode_up_key: Option<char> = args.value_of("copy_mode_up_key").and_then(|s| s.chars().next());
+  let copy_mode_down_key: Option<char> = args.value_of("copy_mode_down_key").and_then(|s| s.chars().next());
 
   let command = args.value_of("command").unwrap();
   let upcase_command = args.value_of("upcase_command").unwrap();
@@ -168,12 +183,15 @@ fn main() {
       background_color,
       hint_foreground_color,
       hint_background_color,
+      copy_mode_up_key,
+      copy_mode_down_key,
     );
 
     viewbox.present()
   };
 
-  if let Some((text, paste)) = selected {
+  let mut copy_mode_movement: Option<String> = None;
+  if let Some((text, paste, movement)) = selected {
     if osc52 {
       let base64_text = base64::encode(text.as_bytes());
       print!("\x1bPtmux;\x1b\x1b]52;c;{}\x1b\x1b\\\\\x1b\\\n", base64_text);
@@ -184,9 +202,16 @@ fn main() {
     if paste {
       exec_command(upcase_command.to_string());
     }
+
+    copy_mode_movement = movement;
   }
 
   if let Some(pane) = args.value_of("tmux_pane") {
     exec_command(format!("tmux swap-pane -t {}", pane));
+
+    if let Some(movement) = copy_mode_movement {
+      exec_command(format!("tmux copy-mode -t {}", pane));
+      exec_command(format!("tmux send-keys -t {} -X {}", pane, movement));
+    }
   };
 }
