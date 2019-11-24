@@ -41,6 +41,8 @@ add-option-param  "upcase-command"
 add-multi-param   "regexp"
 add-boolean-param "contrast"
 add-boolean-param "osc52"
+add-option-param  "copy-mode-up-key"
+add-option-param  "copy-mode-down-key"
 
 # Remove empty arguments from PARAMS.
 # Otherwise, they would choke up tmux-thumbs when passed to it.
