@@ -9,6 +9,7 @@ mod view;
 
 use self::clap::{App, Arg};
 use clap::crate_version;
+use std::io::Write;
 use std::process::Command;
 
 fn exec_command(command: String) -> std::process::Output {
@@ -173,23 +174,43 @@ fn main() {
     viewbox.present()
   };
 
-  if let Some((text, paste)) = selected {
+  if let Some((text, _)) = &selected {
     if osc52 {
       let base64_text = base64::encode(text.as_bytes());
-      print!(
-        "\x1bPtmux;\x1b\x1b]52;c;{}\x1b\x1b\\\\\x1b\\\n",
-        base64_text
-      );
+      let osc_seq = format!("\x1b]52;0;{}\x07", base64_text);
+      let tmux_seq = format!("\x1bPtmux;{}\x1b\\", osc_seq.replace("\x1b", "\x1b\x1b"));
+
+      // When the user selects a match:
+      // 1. The `rustbox` object created in the `viewbox` above is dropped.
+      // 2. During its `drop`, the `rustbox` object sends a CSI 1049 escape
+      //    sequence to tmux.
+      // 3. This escape sequence causes the `window_pane_alternate_off` function
+      //    in tmux to be called.
+      // 4. In `window_pane_alternate_off`, tmux sets the needs-redraw flag in the
+      //    pane.
+      // 5. If we print the OSC copy escape sequence before the redraw is completed,
+      //    tmux will *not* send the sequence to the host terminal. See the following
+      //    call chain in tmux: `input_dcs_dispatch` -> `screen_write_rawstring`
+      //    -> `tty_write` -> `tty_client_ready`. In this case, `tty_client_ready`
+      //    will return false, thus preventing the escape sequence from being sent.
+      //
+      // Therefore, for now we wait a little bit here for the redraw to finish.
+      std::thread::sleep(std::time::Duration::from_millis(100));
+
+      std::io::stdout().write_all(tmux_seq.as_bytes()).unwrap();
+      std::io::stdout().flush().unwrap();
     }
 
     exec_command(str::replace(command, "{}", text.as_str()));
-
-    if paste {
-      exec_command(upcase_command.to_string());
-    }
   }
 
   if let Some(pane) = args.value_of("tmux_pane") {
     exec_command(format!("tmux swap-pane -t {}", pane));
   };
+
+  if let Some((_, paste)) = &selected {
+    if *paste {
+      exec_command(upcase_command.to_string());
+    }
+  }
 }
