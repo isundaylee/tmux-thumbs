@@ -12,13 +12,16 @@ use clap::crate_version;
 use std::io::Write;
 use std::process::Command;
 
-fn exec_command(command: String) -> std::process::Output {
-  let args: Vec<_> = command.split(" ").collect();
-
-  return Command::new(args[0])
+fn exec_command_args(args: &Vec<String>) -> std::process::Output {
+  return Command::new(&args[0])
     .args(&args[1..])
     .output()
     .expect("Couldn't run it");
+}
+
+fn exec_command(command: String) -> std::process::Output {
+  let args: Vec<_> = command.split(" ").map(String::from).collect();
+  return exec_command_args(&args);
 }
 
 fn app_args<'a>() -> clap::ArgMatches<'a> {
@@ -227,7 +230,11 @@ fn main() {
       std::io::stdout().flush().unwrap();
     }
 
-    exec_command(str::replace(command, "{}", text.as_str()));
+    let command_tokens = command
+      .split(" ")
+      .map(|t| t.replace("{}", text.as_str()))
+      .collect();
+    exec_command_args(&command_tokens);
   }
 
   if let Some(pane) = args.value_of("tmux_pane") {
