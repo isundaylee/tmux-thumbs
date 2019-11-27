@@ -170,7 +170,7 @@ fn main() {
     "".to_string()
   };
 
-  let execution = exec_command(format!("tmux capture-pane -e -J -p{}", tmux_subcommand));
+  let execution = exec_command(format!("tmux capture-pane -J -p{}", tmux_subcommand));
   let output = String::from_utf8_lossy(&execution.stdout);
   let lines = output.split("\n").collect::<Vec<&str>>();
 
