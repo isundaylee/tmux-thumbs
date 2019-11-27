@@ -6,6 +6,7 @@ use std::default::Default;
 
 pub struct View<'a> {
   state: &'a mut state::State<'a>,
+  width: usize,
   skip: usize,
   reverse: bool,
   unique: bool,
@@ -23,6 +24,7 @@ pub struct View<'a> {
 impl<'a> View<'a> {
   pub fn new(
     state: &'a mut state::State<'a>,
+    width: usize,
     reverse: bool,
     unique: bool,
     contrast: bool,
@@ -37,6 +39,7 @@ impl<'a> View<'a> {
   ) -> View<'a> {
     View {
       state: state,
+      width: width,
       skip: 0,
       reverse: reverse,
       unique: unique,
@@ -98,22 +101,36 @@ impl<'a> View<'a> {
       rustbox.clear();
       rustbox.present();
 
+      // start_ys[i] = j means that the i-th logical row should start on the
+      // j-th physical row considering line-wrapping.
+      let mut start_ys: Vec<usize> = Vec::with_capacity(self.state.lines.len());
+      start_ys.push(0);
       for (index, line) in self.state.lines.iter().enumerate() {
         let clean = line.trim_end_matches(|c: char| c.is_whitespace());
+        let start_y = start_ys[index];
+        let line_chars = clean.chars().count();
+        let mut char_indices: Vec<usize> = clean.char_indices().map(|(i, _)| i).collect();
+        char_indices.push(clean.len());
 
-        if clean.len() > 0 {
-          let text = self.make_hint_text(line);
-
+        for start_x in (0..line_chars).step_by(self.width) {
           rustbox.print(
             0,
-            index,
+            start_y + (start_x / self.width),
             rustbox::RB_NORMAL,
             Color::White,
             Color::Black,
-            &text,
+            &clean[char_indices[start_x]..char_indices[line_chars.min(start_x + self.width)]],
           );
         }
+
+        let line_count = (line_chars.max(1) - 1) / self.width + 1;
+        start_ys.push(start_y + line_count);
       }
+
+      // This is a closure that translates a logical (col, row) coordinate into
+      // a physical (x, y) coord that we should pass to rustbox::print.
+      let translate_coord =
+        |col: usize, row: usize| return (col % self.width, start_ys[row] + (col / self.width));
 
       selected = matches.get(self.skip);
 
@@ -131,14 +148,18 @@ impl<'a> View<'a> {
         let offset = (mat.x as usize) - extra;
         let text = self.make_hint_text(mat.text);
 
-        rustbox.print(
-          offset,
-          mat.y as usize,
-          rustbox::RB_NORMAL,
-          selected_color,
-          self.background_color,
-          &text,
-        );
+        for ch_index in 0..text.len() {
+          let (x, y) = translate_coord(offset + ch_index, mat.y as usize);
+
+          rustbox.print(
+            x,
+            y,
+            rustbox::RB_NORMAL,
+            selected_color,
+            self.background_color,
+            &text[ch_index..ch_index + 1],
+          );
+        }
 
         if let Some(ref hint) = mat.hint {
           let extra_position = if self.position == "left" {
@@ -149,14 +170,18 @@ impl<'a> View<'a> {
 
           let text = self.make_hint_text(hint.as_str());
 
-          rustbox.print(
-            offset + extra_position,
-            mat.y as usize,
-            rustbox::RB_BOLD,
-            self.hint_foreground_color,
-            self.hint_background_color,
-            &text,
-          );
+          for ch_index in 0..text.len() {
+            let (x, y) = translate_coord(offset + extra_position + ch_index, mat.y as usize);
+
+            rustbox.print(
+              x,
+              y,
+              rustbox::RB_BOLD,
+              self.hint_foreground_color,
+              self.hint_background_color,
+              &text[ch_index..ch_index + 1],
+            );
+          }
         }
       }
 

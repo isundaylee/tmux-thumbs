@@ -176,9 +176,14 @@ fn main() {
 
   let mut state = state::State::new(&lines, alphabet, &regexp);
 
+  let width_execution = exec_command(format!("tmux display-message -p #{{pane_width}}"));
+  let width_output = String::from_utf8_lossy(&width_execution.stdout);
+  let width: usize = width_output.trim_end().parse().unwrap();
+
   let selected = {
     let mut viewbox = view::View::new(
       &mut state,
+      width,
       reverse,
       unique,
       contrast,
